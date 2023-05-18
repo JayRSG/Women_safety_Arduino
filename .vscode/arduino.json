@@ -1,0 +1,6 @@
+{
+    "sketch": "Women_safety_final.ino",
+    "board": "arduino:avr:uno",
+    "programmer": "avrispmkii",
+    "port": "COM3"
+}
