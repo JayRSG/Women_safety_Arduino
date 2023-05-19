@@ -33,15 +33,15 @@ int endTime = 0;
 
 struct Contacts
 {
-  char contact_name[25];
-  char contact_number[15];
+  String contact_name;
+  String contact_number;
   Contacts *next;
   Contacts *previous;
 };
 
 struct Messages
 {
-  char message_body[30];
+  String message_body;
   Messages *next;
   Messages *previous;
 };
@@ -58,10 +58,10 @@ void addContacts(const char *name, const char *number)
 {
   Contacts *contact = new Contacts();
 
-  // contact->contact_name = name;
-  strcpy(contact->contact_name, name);
-  // contact->contact_number = number;
-  strcpy(contact->contact_number, number);
+  contact->contact_name = name;
+  // strcpy(contact->contact_name, name);
+  contact->contact_number = number;
+  // strcpy(contact->contact_number, number);
 
   contact->next = NULL;
   contact->previous = NULL;
@@ -89,8 +89,8 @@ void addMessages(const char *body)
 {
   Messages *message = new Messages();
 
-  // message->message_body = body;
-  strcpy(message->message_body, body);
+  message->message_body = body;
+  // strcpy(message->message_body, body);
 
   message->next = NULL;
   message->previous = NULL;
@@ -128,11 +128,22 @@ void initGSM()
   updateSerial("AT");
 
   gsmConnected = gsmState == ATOK ? true : false;
+
+  if (gsmConnected)
+  {
+    SP.println(F("GSM Connected"));
+    display_msg("GSM Connected", 1, 2000);
+  }
+  else
+  {
+    SP.println(F("GSM Connection Failed"));
+    display_msg("GSM Connection Failed", 1, 2000);
+  }
 }
 
 void updateSerial(String com)
 {
-  String response;
+  String response = "";
 
   while (gsm.available())
   {
@@ -140,7 +151,7 @@ void updateSerial(String com)
     c = gsm.read();
     response += c;
 
-    if (c == '\n' && response.length() > 2)
+    if (c == '\n' && response.length() >= 2)
     {
       if (!beginsWith(response, "\r\n"))
       {
@@ -406,7 +417,7 @@ void readSelectors()
 {
   switch (current_menu)
   {
-  case 0:
+  case 0: // Display Menu
     if (readBtn(leftBtn) && !readBtn(okBtn))
     {
       option = abs(option - 1);
@@ -430,8 +441,8 @@ void readSelectors()
       }
     }
     break;
-  case 1:
-  case 2:
+  case 1: // Contact Menu Number
+  case 2: // Contact Menu Name
     if (readBtn(rightBtn) && !readBtn(okBtn))
     {
       current_contact = current_menu == 1 ? current_contact->next : current_contact;
@@ -491,7 +502,7 @@ void readSelectors()
       }
     }
     break;
-  case 4:
+  case 4: // Calling menu
     bool btnState = readBtn(okBtn);
     if (phoneState == callInProgress || gsmState == callInit)
     {
@@ -538,7 +549,8 @@ void displayContact()
 
   lcd.print("Contacts: ");
   lcd.setCursor(0, 1);
-  int length = displayName ? strlen(current_contact->contact_name) : strlen(current_contact->contact_number);
+  // int length = displayName ? strlen(current_contact->contact_name) : strlen(current_contact->contact_number);
+  int length = displayName ? current_contact->contact_name.length() : current_contact->contact_number.length();
 
   if (current_contact != NULL)
   {
@@ -550,6 +562,7 @@ void displayContact()
 
 void menuManagement()
 {
+  readSelectors();
   switch (current_menu)
   {
   case 0:
@@ -569,6 +582,11 @@ void menuManagement()
     break;
   case 4:
     checkGSMStatus();
+
+    if (gsmState == callFailed || phoneState == ready)
+    {
+      current_menu = 0;
+    }
     break;
   case 5:
     // panicMode(triggerPanic);
@@ -576,7 +594,12 @@ void menuManagement()
   default:
     break;
   }
-  readSelectors();
+
+  if (!gsmConnected)
+  {
+    initGSM();
+    dl(3000);
+  }
 }
 
 void PanicBtnPress(bool off = false)
@@ -665,7 +688,9 @@ void initBtnPress()
 
 void makeCall()
 {
-  gsm.println(strcat(strcat("ATD", current_contact->contact_number), ";"));
+  // gsm.println(strcat(strcat("ATD", current_contact->contact_number), ";\r"));
+  gsm.println("ATD" + current_contact->contact_number + ";");
+
   dl(1000);
   updateSerial("ATD");
 }
@@ -715,6 +740,8 @@ void sms(String sms_body = "")
     // dl(2000);
     // updateSerial("AT+CMGS");
 
+    dl(1000);
+
     sms_body == "" ? gsm.print(current_message->message_body) : gsm.print(sms_body);
     gsm.write(26);
     dl(2000);
@@ -736,6 +763,7 @@ void sms(String sms_body = "")
         current_menu = 0;
       }
       display_msg("SMS Failed", 1, 2000);
+      SP.println(F("SMS Sending Failed"));
     }
   }
   else
@@ -903,16 +931,6 @@ void setup()
   addMessages("I am safe");
   addMessages("Heading home");
 
-  if (gsmConnected)
-  {
-    SP.println(F("GSM Connected"));
-    display_msg("GSM Connected", 1, 2000);
-  }
-  else
-  {
-    SP.println(F("GSM Connection Failed"));
-    display_msg("GSM Connection Failed", 1, 2000);
-  }
   backLight(false);
 
   checkGSMStatus();
@@ -926,5 +944,6 @@ void loop()
   initBtnPress();
   menuManagement();
 
+  readSelectors();
   dl(200);
 }
