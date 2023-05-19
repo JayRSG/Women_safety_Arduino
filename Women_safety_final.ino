@@ -184,7 +184,7 @@ int gsmResponse(String req, String res)
   {
     return ringing;
   }
-  else if (beginsWith(res, "+CMGS:"))
+  else if (beginsWith(res, "AT+CMGS="))
   {
     if (contains(req, "AT+CMGS"))
     {
@@ -504,9 +504,10 @@ void readSelectors()
     break;
   case 4: // Calling menu
     bool btnState = readBtn(okBtn);
+    dl(20);
     if (phoneState == callInProgress || gsmState == callInit)
     {
-      if (btnState)
+      if (btnState || readBtn(okBtn))
       {
         hangCall();
       }
@@ -562,7 +563,6 @@ void displayContact()
 
 void menuManagement()
 {
-  readSelectors();
   switch (current_menu)
   {
   case 0:
@@ -594,6 +594,8 @@ void menuManagement()
   default:
     break;
   }
+
+  readSelectors();
 
   if (!gsmConnected)
   {
@@ -643,11 +645,11 @@ void PanicBtnPress(bool off = false)
 void NormalBtnPress()
 {
   // Start Normal Mode on a single ok btn press
-  if ((current_menu == -1 || current_menu == 4) && readBtn(okBtn))
+  if ((current_menu == -1) && readBtn(okBtn))
   {
     current_menu = 0;
     displayName = false;
-    backLight(!backLightState);
+    backLight(true);
   }
 }
 
@@ -710,6 +712,11 @@ void hangCall()
   gsm.println("ATH");
   dl(1000);
   updateSerial("ATH");
+
+  if (gsmState == hangUpCall)
+  {
+    display_msg("Call Hung Up", 1, 1000);
+  }
 }
 
 void checkGSMStatus()
@@ -731,7 +738,7 @@ void sms(String sms_body = "")
   dl(1000);
   updateSerial("AT+CMGF=1");
 
-  if (gsmState != smsFailed && gsmState == smsTextMode)
+  if (gsmState == smsTextMode && gsmState != smsFailed)
   {
     // set receipient #
     gsm.print("AT+CMGS=\"");
