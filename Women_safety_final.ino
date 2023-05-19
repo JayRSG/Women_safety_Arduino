@@ -131,6 +131,7 @@ void initGSM()
 
   if (gsmConnected)
   {
+    backLight(true);
     SP.println(F("GSM Connected"));
     display_msg("GSM Connected", 1, 2000);
   }
@@ -401,11 +402,14 @@ bool beginsWith(String str, String data)
 
 bool readBtn(int btn)
 {
-  if (digitalRead(btn) == HIGH)
+  bool btnState = digitalRead(btn);
+  dl(5);
+
+  if (btnState)
   {
     return true;
   }
-  else if (digitalRead(btn) == LOW)
+  else
   {
     return false;
   }
