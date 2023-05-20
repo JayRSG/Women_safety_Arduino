@@ -1,5 +1,5 @@
-#ifndef WOMEN_SAFETY_FINAL_H
-#define WOMEN_SAFETY_FINAL_H
+#ifndef WOMEN_SAFETY_H
+#define WOMEN_SAFETY_H
 
 #define callInit 0
 #define smsSent 1
@@ -45,5 +45,7 @@ void communication_action();
 void sms(String sms_body = "");
 void call();
 void makeCall();
+void menuManagement();
+void hangCall();
 
 #endif

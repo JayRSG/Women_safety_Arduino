@@ -12,7 +12,7 @@
 #include <Wire.h>
 
 // custmized function library
-#include "Women_Safety_final.h"
+#include "Women_Safety.h"
 
 // library based objects
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -698,16 +698,6 @@ void makeCall()
   gsm.println("ATD" + current_contact->contact_number + ";");
 
   dl(1000);
-  updateSerial("ATD");
-}
-
-void ussdCode()
-{
-  gsm.println("AT+CUSD=1");
-  dl(500);
-  updateSerial("ATD");
-
-  gsm.println("AT+CUSD=1,\"*566#\"\r\n");
   updateSerial("ATD");
 }
 
