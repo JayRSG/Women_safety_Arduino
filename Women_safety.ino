@@ -1014,7 +1014,7 @@ void setup()
 
   // Initialize GSM
   gsmState = -1;
-  smsRemains = false;
+  smsRemains = true;
   callRemains = true;
   initGSM();
   /**Adding Contacts*/
