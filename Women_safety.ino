@@ -30,6 +30,8 @@ bool displayName = false;
 bool timerStart = false;
 int startTime = 0;
 int endTime = 0;
+bool smsRemains = false;
+bool callRemains = false;
 
 struct Contacts
 {
@@ -53,6 +55,8 @@ Messages *latest_message = messages_head;
 Contacts *head_contact = NULL;
 Contacts *current_contact = head_contact;
 Contacts *latest_contact = head_contact;
+
+Contacts *NowCallingContact = NULL;
 
 void addContacts(const char *name, const char *number)
 {
@@ -140,6 +144,11 @@ void initGSM()
     SP.println(F("GSM Connection Failed"));
     display_msg("GSM Connection Failed", 1, 2000);
   }
+
+  if (current_menu == -1)
+  {
+    backLight(false);
+  }
 }
 
 void updateSerial(String com)
@@ -156,13 +165,21 @@ void updateSerial(String com)
     {
       if (!beginsWith(response, "\r\n"))
       {
+        // if (contains(response, "AT+CPAS") || contains(response, "+CPAS:") || (contains(com, "AT+CPAS") && contains(response, "OK")))
         if (contains(response, "AT+CPAS") || contains(response, "+CPAS:"))
         {
           phoneState = gsmResponse(com, response);
         }
         else if (!contains(response, "AT+CPAS") || !contains(response, "+CPAS:"))
         {
+          // if (contains(com, "AT+CPAS") && contains(response, "OK"))
+          // {
+          //   phoneState = gsmResponse(com, response);
+          // }
+          // else
+          // {
           gsmState = gsmResponse(com, response);
+          // }
         }
       }
       parseGSMResponse();
@@ -268,6 +285,10 @@ int gsmResponse(String req, String res)
     {
       int state = (int)(res.charAt(res.indexOf(':') + 2) - '0');
       return phoneStatus(state);
+    }
+    else if (beginsWith(res, "OK"))
+    {
+      return gsmState;
     }
   }
   return -1;
@@ -403,7 +424,7 @@ bool beginsWith(String str, String data)
 bool readBtn(int btn)
 {
   bool btnState = digitalRead(btn);
-  dl(5);
+  dl(1);
 
   if (btnState)
   {
@@ -437,6 +458,8 @@ void readSelectors()
       {
         triggerPanic = true;
         current_menu = 5;
+        current_contact = head_contact;
+        current_message = messages_head;
       }
       else if (option == 0 || option == 1)
       {
@@ -587,19 +610,18 @@ void menuManagement()
   case 4:
     checkGSMStatus();
 
-    if (gsmState == callFailed || phoneState == ready)
+    if (gsmState == callFailed || gsmState == hangUpCall)
     {
       current_menu = 0;
     }
     break;
   case 5:
-    // panicMode(triggerPanic);
+    checkGSMStatus();
+    panicMode();
     break;
   default:
     break;
   }
-
-  readSelectors();
 
   if (!gsmConnected)
   {
@@ -608,10 +630,10 @@ void menuManagement()
   }
 }
 
-void PanicBtnPress(bool off = false)
+void panicBtnPress(bool on = true)
 {
   // panic mode on
-  if (!off)
+  if (on)
   {
     if (current_menu == -1 && !timerStart && readBtn(leftBtn))
     {
@@ -627,8 +649,8 @@ void PanicBtnPress(bool off = false)
       current_contact = head_contact;
     }
   }
-  // panic mode off
-  else if (off)
+  // panic mode on
+  else if (!on)
   {
     // Stop Panic Mode Init
     if (current_menu == 5 && !timerStart && readBtn(leftBtn))
@@ -646,7 +668,7 @@ void PanicBtnPress(bool off = false)
   }
 }
 
-void NormalBtnPress()
+void normalBtnPress()
 {
   // Start Normal Mode on a single ok btn press
   if ((current_menu == -1) && readBtn(okBtn))
@@ -660,13 +682,15 @@ void NormalBtnPress()
 void resolveBtnPress()
 {
   // start / end panic mode
-  if (endTime && startTime && !timerStart && (endTime - startTime) >= 100 && (endTime - startTime) < 1000)
+  // SP.println(F("Resolvinig btn Press"));
+  if (endTime && startTime && !timerStart && (endTime - startTime) >= 100 && (endTime - startTime) < 4000)
   {
     if (current_menu == 5 && triggerPanic)
     {
       // display_msg("Welcome", 3);
-      backLight(false);
-      current_menu = -1;
+      // backLight(false);
+      // current_menu = -1;
+      current_menu = 0;
       triggerPanic = false;
     }
   }
@@ -685,9 +709,9 @@ void resolveBtnPress()
 
 void initBtnPress()
 {
-  PanicBtnPress();
-  PanicBtnPress(true);
-  NormalBtnPress();
+  panicBtnPress(true);
+  panicBtnPress(false);
+  normalBtnPress();
 
   resolveBtnPress();
 }
@@ -710,6 +734,7 @@ void hangCall()
   if (gsmState == hangUpCall)
   {
     display_msg("Call Hung Up", 1, 1000);
+    current_menu = 0;
   }
 }
 
@@ -798,6 +823,66 @@ void call()
     SP.println(current_contact->contact_name);
 
     display_msg("Calling " + String(current_contact->contact_name), 1);
+  }
+}
+
+void panicMode()
+{
+  // 1 First Send SMS to Contact List
+  // 2 If all sms are sent then start call
+  // 3 If the first call is received pause,
+  // 4 if the call is failed/disconnected, call the next number
+  // 5 Repeat from step 3
+
+  // String PanicSMS = "I am in danger. My Location: https://www.google.com/maps/search/?api=1&query=22.362270,91.83458&zoom=22";
+  initBtnPress();
+  String PanicSMS = "I am in danger";
+  display_msg("SOS", 2);
+
+  if (current_menu == 5 && triggerPanic)
+  {
+    if (gsmConnected)
+    {
+      if (smsRemains && phoneState == ready) // Send SMS
+      {
+        sms(PanicSMS);
+
+        if (gsmState == smsSent)
+        {
+          current_contact = current_contact->next;
+        }
+
+        if (current_contact == NULL)
+        {
+          smsRemains = false;
+          current_contact = head_contact;
+        }
+      }
+      else if (!smsRemains && callRemains && phoneState == ready) // Make Calls
+      {
+        SP.print("GSM:");
+        SP.println(gsmState);
+
+        if (gsmState == callFailed && phoneState == ready && gsmState != callInProgress)
+        {
+          current_contact = current_contact->next;
+          gsmState = noState;
+        }
+        else if (phoneState != callInProgress && phoneState == ready && gsmState != callFailed)
+        {
+          call();
+        }
+
+        if (current_contact == NULL)
+        {
+          callRemains = false;
+        }
+      }
+      else if (!callRemains && !smsRemains)
+      {
+        beep(300, 1, 300);
+      }
+    }
   }
 }
 
@@ -922,10 +1007,12 @@ void setup()
 
   // Initialize GSM
   gsmState = -1;
+  smsRemains = false;
+  callRemains = true;
   initGSM();
   /**Adding Contacts*/
-  addContacts("Joy Ram Sen Gupta", "+8801760060004");
-  addContacts("Falguni Sengupta", "+8801760060005");
+  addContacts("Nusrat Binte Chow", "+8801760060004");
+  addContacts("Bhaiya", "+8801760060005");
 
   addMessages("I am in distress");
   addMessages("Save my Soul");
@@ -940,7 +1027,6 @@ void setup()
 // the main loop, runs continuously as long as the board is on
 void loop()
 {
-
   backNav();
   initBtnPress();
   menuManagement();

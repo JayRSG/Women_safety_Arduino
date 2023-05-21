@@ -1,6 +1,7 @@
 #ifndef WOMEN_SAFETY_H
 #define WOMEN_SAFETY_H
 
+#define noState -1
 #define callInit 0
 #define smsSent 1
 #define callFailed 2
@@ -36,8 +37,8 @@ void beep(int highTime, int freq = 1, int lowTime = 0);
 void readSelectors();
 void displayMenu();
 void displayContact();
-void PanicBtnPress(bool off = false);
-void NormalBtnPress();
+void panicBtnPress(bool on = true);
+void normalBtnPress();
 void resolveBtnPress();
 void initBtnPress();
 void backNav();
@@ -47,5 +48,6 @@ void call();
 void makeCall();
 void menuManagement();
 void hangCall();
+void panicMode();
 
 #endif
