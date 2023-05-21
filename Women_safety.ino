@@ -630,41 +630,49 @@ void menuManagement()
   }
 }
 
-void panicBtnPress(bool on = true)
+void panicBtnPress()
 {
   // panic mode on
-  if (on)
-  {
-    if (current_menu == -1 && !timerStart && readBtn(leftBtn))
-    {
-      timerStart = true;
-      startTime = millis();
-    }
 
-    if (current_menu == -1 && timerStart && readBtn(leftBtn))
-    {
-      endTime = millis();
-      timerStart = false;
-      triggerPanic = true;
-      current_contact = head_contact;
-    }
+  if (current_menu == -1 && !timerStart && readBtn(leftBtn))
+  {
+    timerStart = true;
+    startTime = millis();
   }
-  // panic mode on
-  else if (!on)
-  {
-    // Stop Panic Mode Init
-    if (current_menu == 5 && !timerStart && readBtn(leftBtn))
-    {
-      timerStart = true;
-      startTime = millis();
-    }
 
-    // Stop Panic Mode Second Press
-    if (current_menu == 5 && timerStart && readBtn(leftBtn))
+  if (current_menu == -1 && timerStart && readBtn(leftBtn))
+  {
+    endTime = millis();
+    timerStart = false;
+    triggerPanic = true;
+    current_contact = head_contact;
+  }
+
+  // panic mode on
+
+  // Stop Panic Mode Init
+
+  if (current_menu == 5 && !timerStart && readBtn(leftBtn))
+  {
+    timerStart = true;
+    startTime = millis();
+
+    if (phoneState == callInProgress)
     {
-      endTime = millis();
-      timerStart = false;
+      hangCall();
     }
+    dl(500);
+
+    current_menu = 0;
+    triggerPanic = false;
+    current_contact = head_contact;
+  }
+
+  // Stop Panic Mode Second Press
+  if (current_menu == 5 && timerStart && readBtn(leftBtn))
+  {
+    endTime = millis();
+    timerStart = false;
   }
 }
 
@@ -683,7 +691,7 @@ void resolveBtnPress()
 {
   // start / end panic mode
   // SP.println(F("Resolvinig btn Press"));
-  if (endTime && startTime && !timerStart && (endTime - startTime) >= 100 && (endTime - startTime) < 4000)
+  if (endTime && startTime && !timerStart && (endTime - startTime) >= 100 && (endTime - startTime) < 2000)
   {
     if (current_menu == 5 && triggerPanic)
     {
@@ -709,8 +717,7 @@ void resolveBtnPress()
 
 void initBtnPress()
 {
-  panicBtnPress(true);
-  panicBtnPress(false);
+  panicBtnPress();
   normalBtnPress();
 
   resolveBtnPress();
@@ -1012,7 +1019,7 @@ void setup()
   initGSM();
   /**Adding Contacts*/
   addContacts("Nusrat Binte Chow", "+8801760060004");
-  addContacts("Bhaiya", "+8801760060005");
+  addContacts("Sir", "+8801770788885");
 
   addMessages("I am in distress");
   addMessages("Save my Soul");

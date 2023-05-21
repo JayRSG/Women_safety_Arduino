@@ -37,7 +37,7 @@ void beep(int highTime, int freq = 1, int lowTime = 0);
 void readSelectors();
 void displayMenu();
 void displayContact();
-void panicBtnPress(bool on = true);
+void panicBtnPress();
 void normalBtnPress();
 void resolveBtnPress();
 void initBtnPress();
